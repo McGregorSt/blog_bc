@@ -47,6 +47,29 @@ exports.getPostsByContinent = (req, res, next) => {
     })
 }
 
+exports.getCountriesByContinent = (req, res, next) => {
+  const continent = req.params.continent
+
+  Post.findAll({
+    attributes: ['country'],
+    where: { continent: continent },
+    group: ['country'],
+    order: [['country', 'ASC']],
+  })
+    .then((countries) => {
+      const countryList = countries.map((entry) => entry.country)
+
+      res.status(200).json({
+        continent: continent,
+        countries: countryList,
+      })
+    })
+    .catch((err) => {
+      console.log(err)
+      res.status(500).json({ message: 'Błąd pobierania krajów' })
+    })
+}
+
 exports.createPost = (req, res, next) => {
   // Wyciągamy dane z req.body - dobra praktyka to destrukturyzacja
   const {

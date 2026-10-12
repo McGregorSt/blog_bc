@@ -1,11 +1,64 @@
 const Post = require('../models/post')
+const PostTranslation = require('../models/postTranslation')
+const sequelize = require('../util/database')
+
+const translationFields = [
+  'language',
+  'title',
+  'subtitle',
+  'countryLabel',
+  'textLead',
+  'textParagraphs',
+  'metadata',
+  'hero',
+]
+
+const getLanguage = (req, res) => {
+  const language = req.query.lang === undefined ? 'EN' : req.query.lang
+  const normalizedLanguage = typeof language === 'string' ? language.toUpperCase() : ''
+
+  if (!['EN', 'PL'].includes(normalizedLanguage)) {
+    res.status(400).json({ message: 'Parametr lang musi mieć wartość EN albo PL' })
+    return null
+  }
+
+  return normalizedLanguage
+}
+
+const translationInclude = (language) => ({
+  model: PostTranslation,
+  as: 'translations',
+  attributes: translationFields,
+  where: { language },
+  required: true,
+})
+
+const serializePost = (post) => {
+  const postData = post.toJSON()
+  const translation = postData.translations[0]
+
+  delete postData.translations
+  return { ...postData, ...translation }
+}
+
+const isValidParagraphs = (paragraphs) =>
+  Array.isArray(paragraphs) &&
+  paragraphs.every(
+    (paragraph) =>
+      paragraph &&
+      typeof paragraph.paragraphLead === 'string' &&
+      Array.isArray(paragraph.paragraphText) &&
+      paragraph.paragraphText.every((text) => typeof text === 'string'),
+  )
 
 exports.getPosts = (req, res, next) => {
-  // Sequelize używa findAll() zamiast find()
-  Post.findAll()
+  const language = getLanguage(req, res)
+  if (!language) return
+
+  Post.findAll({ include: [translationInclude(language)] })
     .then((posts) => {
       res.status(200).json({
-        posts: posts,
+        posts: posts.map(serializePost),
       })
     })
     .catch((err) => {
@@ -15,15 +68,20 @@ exports.getPosts = (req, res, next) => {
 }
 
 exports.getPost = (req, res, next) => {
+  const language = getLanguage(req, res)
+  if (!language) return
+
   const country = req.params.country
-  // Sequelize używa findOne() by znaleźć jeden rekord po country
-  Post.findOne({ where: { country: country } })
+  Post.findOne({
+    where: { country },
+    include: [translationInclude(language)],
+  })
     .then((post) => {
       if (!post) {
         return res.status(404).json({ message: 'Nie znaleziono posta' })
       }
       res.status(200).json({
-        post: post,
+        post: serializePost(post),
       })
     })
     .catch((err) => {
@@ -33,12 +91,17 @@ exports.getPost = (req, res, next) => {
 }
 
 exports.getPostsByContinent = (req, res, next) => {
+  const language = getLanguage(req, res)
+  if (!language) return
+
   const continent = req.params.continent
-  // W Sequelize filtrowanie robimy w obiekcie 'where'
-  Post.findAll({ where: { continent: continent } })
+  Post.findAll({
+    where: { continent },
+    include: [translationInclude(language)],
+  })
     .then((posts) => {
       res.status(200).json({
-        posts: posts,
+        posts: posts.map(serializePost),
       })
     })
     .catch((err) => {
@@ -48,20 +111,37 @@ exports.getPostsByContinent = (req, res, next) => {
 }
 
 exports.getCountriesByContinent = (req, res, next) => {
+  const language = getLanguage(req, res)
+  if (!language) return
+
   const continent = req.params.continent
 
   Post.findAll({
     attributes: ['country'],
     where: { continent: continent },
-    group: ['country'],
+    include: [
+      {
+        ...translationInclude(language),
+        attributes: ['countryLabel'],
+      },
+    ],
     order: [['country', 'ASC']],
   })
-    .then((countries) => {
-      const countryList = countries.map((entry) => entry.country)
+    .then((posts) => {
+      const countriesByCode = new Map()
+      posts.forEach((post) => {
+        const country = post.toJSON()
+        if (!countriesByCode.has(country.country)) {
+          countriesByCode.set(country.country, {
+            code: country.country,
+            label: country.translations[0].countryLabel,
+          })
+        }
+      })
 
       res.status(200).json({
         continent: continent,
-        countries: countryList,
+        countries: [...countriesByCode.values()],
       })
     })
     .catch((err) => {
@@ -71,55 +151,86 @@ exports.getCountriesByContinent = (req, res, next) => {
 }
 
 exports.createPost = (req, res, next) => {
-  // Wyciągamy dane z req.body - dobra praktyka to destrukturyzacja
   const {
-    title,
-    subtitle,
     country,
     continent,
     tourStart,
     tourEnd,
     imageUrl,
-    textLead,
-    textParagraphs, // Oczekujemy tablicy obiektów: [{ paragraphLead, paragraphText }]
-    postGallery, // Oczekujemy tablicy tablic: [[{ src }]]
+    postGallery,
     creator,
     author,
     modifiedAt,
+    translations,
   } = req.body
 
-  Post.create({
-    title,
-    subtitle,
-    country,
-    continent,
-    tourStart,
-    tourEnd,
-    imageUrl,
-    textLead,
-    textParagraphs,
-    postGallery, // Dodane nowe pole
-    creator,
-    author,
-    modifiedAt,
-  })
-    .then((result) => {
+  const supportedLanguages = ['EN', 'PL']
+  if (
+    !translations ||
+    supportedLanguages.some((language) => {
+      const translation = translations[language]
+      return (
+        !translation ||
+        typeof translation.title !== 'string' ||
+        !translation.title.trim() ||
+        typeof translation.countryLabel !== 'string' ||
+        !translation.countryLabel.trim() ||
+        (translation.subtitle !== undefined && typeof translation.subtitle !== 'string') ||
+        (translation.textLead !== undefined && typeof translation.textLead !== 'string') ||
+        !isValidParagraphs(translation.textParagraphs || [])
+      )
+    })
+  ) {
+    return res.status(400).json({
+      message: 'Wymagane są tłumaczenia EN i PL z polami title oraz countryLabel',
+    })
+  }
+
+  sequelize
+    .transaction(async (transaction) => {
+      const post = await Post.create(
+        {
+          country,
+          continent,
+          tourStart,
+          tourEnd,
+          imageUrl,
+          postGallery,
+          creator,
+          author,
+          modifiedAt,
+        },
+        { transaction },
+      )
+
+      await PostTranslation.bulkCreate(
+        supportedLanguages.map((language) => {
+          const translation = translations[language]
+          return {
+            postId: post.id,
+            language,
+            title: translation.title,
+            subtitle: translation.subtitle || '',
+            countryLabel: translation.countryLabel,
+            textLead: translation.textLead || '',
+            textParagraphs: translation.textParagraphs || [],
+            metadata: translation.metadata ?? null,
+            hero: translation.hero ?? null,
+          }
+        }),
+        { transaction },
+      )
+
+      return post
+    })
+    .then((post) => {
       res.status(201).json({
         message: 'Post created!',
-        post: result,
+        post: post,
       })
     })
     .catch((err) => {
       console.error('Sequelize Error:', err)
-
-      // Obsługa błędu 22P02, o którym wspomniałeś wcześniej
-      if (err.parent && err.parent.code === '22P02') {
-        return res.status(400).json({
-          message: 'Błąd formatu danych. Upewnij się, że baza danych została zaktualizowana do JSONB.',
-          error: err.parent.detail,
-        })
-      }
-
       res.status(500).json({
         message: 'Błąd tworzenia posta',
         error: err.message || err,
@@ -127,62 +238,3 @@ exports.createPost = (req, res, next) => {
     })
 }
 
-// const Post = require('../models/post')
-
-// exports.getPosts = (req, res, next) => {
-//   Post.find()
-//     .then((posts) => {
-//       res.status(200).json({
-//         posts: posts,
-//       })
-//     })
-//     .catch((err) => console.log(err))
-// }
-
-// exports.getPost = (req, res, next) => {
-//   const postId = req.params.postId
-//   Post.findById(postId)
-//     .then((post) => {
-//       res.status(200).json({
-//         post: post,
-//       })
-//     })
-//     .catch((err) => console.log(err))
-// }
-
-// exports.getPostsByContinent = (req, res, next) => {
-//   const continent = req.params.continent
-//   Post.find({ continent: continent })
-//     .then((posts) => {
-//       res.status(200).json({
-//         posts: posts,
-//       })
-//     })
-//     .catch((err) => console.log(err))
-// }
-
-// exports.createPost = (req, res, next) => {
-//   const post = new Post({
-//     title: req.body.title,
-//     country: req.body.country,
-//     continent: req.body.continent,
-//     tourStart: req.body.tourStart,
-//     tourEnd: req.body.tourEnd,
-//     imageUrl: req.body.imageUrl,
-//     textLead: req.body.textLead,
-//     textParagraphs: req.body.textParagraphs,
-//     creator: req.body.creator,
-//     author: req.body.author,
-//     modifiedAt: req.body.modifiedAt,
-//   })
-
-//   post
-//     .save()
-//     .then((result) => {
-//       res.status(201).json({
-//         message: 'Post created!',
-//         post: result,
-//       })
-//     })
-//     .catch((err) => console.log(err))
-// }

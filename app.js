@@ -1,6 +1,7 @@
 const express = require('express')
 const sequelize = require('./util/database') // Twoje połączenie
 const Post = require('./models/post') // Importujesz JUŻ ZDEFINIOWANY model
+require('./models/postTranslation')
 const bodyParser = require('body-parser')
 
 const blogRoutes = require('./routes/blog')
@@ -34,8 +35,7 @@ app.use((req, res, next) => {
 app.use('/blog', blogRoutes)
 
 sequelize
-  // .sync({ alter: true }) // Synchronizuj modele z bazą danych (tworzy tabele, jeśli nie istnieją)
-  .sync() // Synchronizuj modele z bazą danych (tworzy tabele, jeśli nie istnieją)
+  .sync()
   .then(() => {
     console.log('Baza zsynchronizowana!')
     app.listen(9090)

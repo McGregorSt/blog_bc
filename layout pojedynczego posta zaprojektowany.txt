@@ -1,0 +1,215 @@
+layout pojedynczego posta zaprojektowany jako editorial + travel journal — dużo przestrzeni, mocna fotografia, łatwe skanowanie treści i jednocześnie funkcje typowe dla dobrego przewodnika.
+
+1. Hero section
+Układ desktop
+
+Na samej górze pełnoekranowy hero, najlepiej o wysokości ok. 75–90vh.
+
+┌──────────────────────────────────────────────────────────────┐
+│                         NAVBAR                               │
+├──────────────────────────────────────────────────────────────┤
+│                                                              │
+│                    [DUŻE ZDJĘCIE HERO]                       │
+│                                                              │
+│            EUROPA / NORWAY                                  │
+│                                                              │
+│          TROMSØ — W POSZUKIWANIU ZORZY                      │
+│                                                              │
+│       7 dni • 1 240 km • wrzesień 2026                      │
+│                                                              │
+│                    ↓ czytaj dalej                            │
+│                                                              │
+└──────────────────────────────────────────────────────────────┘
+
+Hierarchia:
+
+mały eyebrow: NORWAY / TRAVEL STORY
+H1 bardzo duży: 60–90 px desktop
+krótki lead, maks. 600–700 px szerokości
+metadane: autor, data, czas czytania
+opcjonalnie lokalizacja + dystans + liczba dni
+Mikrointerakcje
+
+Podczas scrollowania:
+
+tekst hero delikatnie znika,
+zdjęcie wykonuje subtelny parallax,
+navbar przechodzi z transparentnego na solidny,
+pojawia się dyskretne ← Back to all stories.
+
+Nie przesadzałbym z animacjami — zdjęcie powinno pozostać głównym bohaterem.
+
+2. Intro / Article overview
+
+Po hero warto dać krótkie wprowadzenie zamiast od razu zaczynać tekst.
+
+                08 min read
+
+      To była jedna z tych podróży...
+
+      [ Tromsø ] [ Lofoty ] [ Senja ]
+
+      ┌─────────────────────────────────────┐
+      │  TRIP AT A GLANCE                   │
+      │                                     │
+      │  7 dni       1 240 km      3 regiony│
+      │  🚗 road trip   ❄️ winter            │
+      └─────────────────────────────────────┘
+
+To miejsce idealnie nadaje się na Travel Snapshot:
+
+7 dni · 1 240 km · samochód · wrzesień · średni budżet
+
+Dzięki temu użytkownik od razu wie, czego dotyczy materiał.
+
+3. Główny layout: Article + Sticky Sidebar
+
+Od tego miejsca proponuję strukturę:
+
+┌─────────────────────────────────────────────────────────────┐
+│                                                             │
+│  SIDEBAR             ARTICLE                                │
+│                                                             │
+│  Contents             01. Tromsø                            │
+│  ─────────            text...                               │
+│                                                             │
+│  ● Tromsø             [PHOTO]                               │
+│    Senja              text...                               │
+│    Lofoty                                                   │
+│                                                             │
+│  ─────────            02. Senja                             │
+│                                                             │
+│  MAP                  text...                               │
+│  ┌──────────────┐                                          │
+│  │              │                                          │
+│  │   ROUTE      │                                          │
+│  │              │                                          │
+│  └──────────────┘                                          │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+Proporcje
+
+Desktop:
+
+ca. 240–280 px sidebar
+720–820 px główna kolumna artykułu
+reszta jako whitespace
+
+Przykładowo:
+
+grid-template-columns: 260px minmax(0, 800px);
+gap: 90px;
+
+Całość wycentrowana na stronie.
+
+4. Sticky Sidebar
+
+Sidebar powinien być sticky, ale niekoniecznie od samego początku strony.
+
+Po minięciu intro:
+
+.sidebar {
+  position: sticky;
+  top: 32px;
+}
+Sekcja 1 — Table of Contents
+ON THIS PAGE
+
+01  Tromsø
+02  Senja
+03  Lofoty
+04  Northern Lights
+05  Practical tips
+06  Budget
+
+Aktywna sekcja jest wizualnie wyróżniona.
+
+Najlepiej nie stosować agresywnego highlightu. Wystarczy:
+
+01  Tromsø
+│
+02  Senja        ← active
+03  Lofoty
+
+plus cienka linia / mały punkt.
+
+Mikrointerakcja
+
+Podczas scrollowania:
+
+Intersection Observer wykrywa aktualny h2/h3.
+
+Sidebar automatycznie zmienia aktywną pozycję:
+
+Tromsø
+Senja       ← active
+Lofoty
+Aurora
+
+Kliknięcie:
+
+smooth scroll,
+offset od sticky headera,
+aktywna sekcja zostaje zaznaczona.
+5. Mapa wyprawy
+
+Pod TOC proponuję drugi moduł:
+
+YOUR ROUTE
+
+┌──────────────────────┐
+│                      │
+│        ● Senja       │
+│       /              │
+│  ● Tromsø            │
+│       \              │
+│        ● Lofoty      │
+│                      │
+└──────────────────────┘
+
+Mapa może być Mapbox/Google Maps.
+
+Najważniejsza rzecz UX:
+
+mapa jest interaktywna z artykułem.
+
+Klikając:
+
+Senja
+
+automatycznie:
+
+mapa centruje się na Senji,
+aktywny marker zmienia stan,
+artykuł scrolluje do sekcji 02. Senja.
+
+I w drugą stronę:
+
+scroll do sekcji Senja → marker Senja zostaje aktywny.
+
+To tworzy bardzo przyjemne połączenie storytelling + mapa.
+
+6. Typografia artykułu
+
+Treść powinna być maksymalnie czytelna.
+
+H2
+01
+Tromsø — początek podróży
+
+lub bardziej editorialowo:
+
+01
+
+Tromsø
+where the journey begins
+Body
+
+Idealnie:
+
+18–20 px desktop
+line-height 1.65–1.8
+maks. 65–75 znaków w linii
+akapity 2–5 zdań
+
+Nie stosowałbym ogromnych bloków tekstu.

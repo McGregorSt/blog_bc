@@ -7,14 +7,6 @@ const Post = sequelize.define('Post', {
     defaultValue: DataTypes.UUIDV4,
     primaryKey: true
   },
-  title: {
-    type: DataTypes.STRING,
-    allowNull: false,
-  },
-  subtitle: {
-    type: DataTypes.STRING,
-    allowNull: false,
-  },
   country: {
     type: DataTypes.STRING,
     allowNull: false,
@@ -35,18 +27,6 @@ const Post = sequelize.define('Post', {
     type: DataTypes.TEXT,
     allowNull: false,
   },
-  textLead: {
-    type: DataTypes.TEXT,
-    allowNull: false,
-  },
-  // ZMIANA: Teraz to tablica obiektów [ { paragraphLead, paragraphText }, ... ]
-  textParagraphs: {
-    type: DataTypes.JSONB, 
-    allowNull: false,
-    defaultValue: [],
-    comment: 'Format: Array of objects [{ "paragraphLead": "string", "paragraphText": [["string"]] }]'
-  },
-  // Galeria jako tablica tablic z obiektami src
   postGallery: {
     type: DataTypes.JSONB,
     allowNull: false,
